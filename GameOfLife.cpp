@@ -1,12 +1,17 @@
 #include <SFML/Graphics.hpp>
+#include <fstream>
+#include <iostream>
 
-double cd = 0.1;
+double cd = 0.03;
 
-int square_size = 9;
+int square_size = 4;
 double thickness = 0;
 int cell_size = square_size - thickness;
 double ca = square_size+thickness;
 int x_c = 0, y_c = 0;
+
+sf::Color alive(sf::Color::White);
+sf::Color dead(sf::Color::Black);
 
 class Cell
 {
@@ -28,6 +33,26 @@ std::vector<Cell> cells;
 Cell cellAt(sf::Vector2f pos)
 {
     return cells[(pos.y*x_c)+pos.x];
+}
+
+int roundUp(int num, int factor)
+{
+    return num+factor-1-(num-1)%factor;
+}
+
+std::vector<std::string> split(const std::string &text, const char* sep) {
+    std::vector<std::string> tokens;
+    std::size_t start = 0, end = 0;
+    while ((end = text.find(sep, start)) != std::string::npos) {
+        if (end != start) {
+          tokens.push_back(text.substr(start, end - start));
+        }
+        start = end + 1;
+    }
+    if (end != start) {
+       tokens.push_back(text.substr(start));
+    }
+    return tokens;
 }
 
 int countNeighbours(Cell cell)
@@ -66,14 +91,11 @@ int main()
 
     x_c = width/square_size; y_c = height/square_size;
 
-    sf::Color alive(sf::Color::White);
-    sf::Color dead(sf::Color::Black);
-
     for(int i = 0; i < height/square_size; ++i)
     {
         for(int j = 0; j < width/square_size; ++j)
         {
-            bool ialive = rand(1, 10) < 2;
+            bool ialive = rand(1, 10) < 3;
             sf::RectangleShape square;
             square.setSize(sf::Vector2f(square_size, cell_size));
             square.setPosition(j*square_size, i*square_size);
@@ -109,14 +131,13 @@ int main()
             {
                 down = true;
                 sf::Vector2f mouse = window.mapPixelToCoords(sf::Mouse::getPosition(window));
-                for(int i = 0; i < grid.size(); ++i)
-                {
-                    if(grid[i].getGlobalBounds().contains(mouse))
-                    {
-                        grid[i].setFillColor(alive);
-                        cells[i].alive = true;
-                    }
-                }
+
+                int x = (roundUp(mouse.x, square_size)-square_size)/square_size;
+                int y = (roundUp(mouse.y, square_size)-square_size)/square_size;
+
+                int i = (y*x_c)+x;
+                grid[i].setFillColor(alive);
+                cells[i].alive = true;
             }
 
             if((event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Right) || (event.type == sf::Event::MouseMoved && down2))
@@ -124,14 +145,12 @@ int main()
                 down2 = true;
                 sf::Vector2f mouse = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
-                for(int i = 0; i < grid.size(); ++i)
-                {
-                    if(grid[i].getGlobalBounds().contains(mouse))
-                    {
-                        grid[i].setFillColor(dead);
-                        cells[i].alive = false;
-                    }
-                }
+                int x = (roundUp(mouse.x, square_size)-square_size)/square_size;
+                int y = (roundUp(mouse.y, square_size)-square_size)/square_size;
+
+                int i = (y*x_c)+x;
+                grid[i].setFillColor(dead);
+                cells[i].alive = false;
             }
 
             if(event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Left)
@@ -139,17 +158,62 @@ int main()
             if(event.type == sf::Event::MouseButtonReleased && event.mouseButton.button == sf::Mouse::Right)
                 down2 = false;
 
-            if(event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space)
+            if(event.type == sf::Event::KeyPressed)
             {
-                if(hasStarted) hasStarted = false;
-                else hasStarted = true;
-            }
-            if(event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::C)
-            {
-                for(int i = 0; i < grid.size(); ++i)
+                if(event.key.code == sf::Keyboard::C)
                 {
-                    grid[i].setFillColor(dead);
-                    cells[i].alive = false;
+                    for(int i = 0; i < grid.size(); ++i)
+                    {
+                        grid[i].setFillColor(dead);
+                        cells[i].alive = false;
+                    }
+                }
+                else if(event.key.code == sf::Keyboard::Space)
+                {
+                    if(hasStarted) hasStarted = false;
+                    else hasStarted = true;
+                }
+                else if(event.key.code == sf::Keyboard::E)
+                {
+                    std::ofstream file;
+                    file.open("file.txt");
+                    file << "|";
+                    for(int i = 0; i < grid.size(); ++i)
+                    {
+                        if(cells[i].alive)
+                        {
+                            file << cells[i].position.x;
+                            file << ",";
+                            file << cells[i].position.y;
+                            file << "|";
+                        }
+                    }
+                    file.close();
+                    std::cout << "Exported to file.\n";
+                }
+                else if(event.key.code == sf::Keyboard::I)
+                {
+                    std::ifstream file("file.txt");
+                    std::string str;
+                    std::string content;
+
+                    while(std::getline(file, str))
+                    {
+                        content += str;
+                    }
+
+                    for(int i = 0; i < grid.size(); ++i) { grid[i].setFillColor(dead); cells[i].alive = false; }
+
+                    std::vector<std::string> positions = split(content, "|");
+                    for(int i = 0; i < positions.size(); ++i)
+                    {
+                        std::vector<std::string> pos = split(positions[i], ",");
+                        int x = atoi(pos[0].c_str());
+                        int y = atoi(pos[1].c_str());
+                        int index = (y*x_c)+x;
+                        cells[index].alive = true;
+                        grid[index].setFillColor(alive);
+                    }
                 }
             }
         }
@@ -206,3 +270,4 @@ int main()
 
     return 0;
 }
+
