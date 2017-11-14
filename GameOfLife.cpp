@@ -7,7 +7,6 @@ double cd = 0.03;
 int square_size = 4;
 double thickness = 0;
 int cell_size = square_size - thickness;
-double ca = square_size+thickness;
 int x_c = 0, y_c = 0;
 
 sf::Color alive(sf::Color::White);
